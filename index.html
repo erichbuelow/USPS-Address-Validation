@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <!-- meta tags -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="icon" href="usps-favicon.ico">
+
+  <title>USPS Address Lookup</title>
+
+  <style media="screen">
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #334;
+      font-family: monospace;
+      padding: 30px;
+    }
+
+    input {
+      background-color: #eee;
+      border: none;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 1.5rem;
+      margin: 5px;
+      outline: none;
+      padding: 10px 15px;
+    }
+
+    button {
+      background-color: #ff9;
+      border: none;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 1.5rem;
+      margin: 5px;
+      outline: none;
+      padding: 10px 15px;
+    }
+
+    button:hover {
+      cursor: pointer;
+      background-color: #ff6;
+    }
+
+    .response {
+      background-color: #eee;
+      border: none;
+      border-radius: 5px;
+      display: inline-block;
+      font-family: monospace;
+      font-size: 1.5rem;
+      margin: 5px;
+      outline: none;
+      padding: 10px 15px;
+    }
+
+    .error {
+      background-color: #f99;
+    }
+  </style>
+</head>
+
+<body>
+
+  <form class="addressForm">
+    <input type="text" name="street" placeholder="Street">
+    <input type="text" name="city" placeholder="City">
+    <input type="text" name="state" placeholder="State">
+    <input type="text" name="zip5" pattern="[0-9]{5}" placeholder="Zip Code">
+    <button type="submit" name="button">Search</button>
+  </form>
+
+  <p class="response">Address will appear here</p>
+
+  <script type="text/javascript">
+    // Get the address form
+    let addressForm = document.querySelector('.addressForm');
+
+    // Listen for submission
+    addressForm.addEventListener('submit', (e) => {
+
+      // Prevent default submission action
+      e.preventDefault();
+
+      // Get the form fields
+      let formData = new FormData(addressForm);
+      let street = formData.get('street');
+      let city = formData.get('city');
+      let state = formData.get('state');
+      let zip5 = formData.get('zip5');
+
+      // Create the url based off the given fields
+      let url = '';
+      if ('' == street && '' == city && '' == state && '' != zip5) {
+        url = `http://production.shippingapis.com/ShippingAPI.dll?API=CityStateLookup&XML=<CityStateLookupRequest USERID=""><ZipCode ID= "0"><Zip5>${zip5}</Zip5></ZipCode></CityStateLookupRequest>`
+      } else {
+        url =
+          `http://production.shippingapis.com/ShippingAPI.dll?API=Verify&XML=<AddressValidateRequest USERID=""><Address ID="0"><Address1></Address1><Address2>${street}</Address2><City>${city}</City><State>${state}</State><Zip5>${zip5}</Zip5><Zip4></Zip4></Address></AddressValidateRequest>`
+      }
+
+      // Create a new request
+      let xhttp = new XMLHttpRequest();
+
+      // Get the element that will display the response
+      let response = document.querySelector('.response');
+
+      // Listen for a response
+      xhttp.onreadystatechange = (e) => {
+
+        // Get the response text
+        let responseText = xhttp.response;
+
+        // Get the XML response by parsing the response text
+        parser = new DOMParser();
+        let responseXML = parser.parseFromString(responseText, "text/xml");
+
+        // Check for errors
+        if (responseXML.querySelector('Error') == null) {
+
+          // Get the tags from the XML response
+          let address2Tag = responseXML.querySelector('Address2');
+          let address1Tag = responseXML.querySelector('Address1');
+          let cityTag = responseXML.querySelector('City');
+          let stateTag = responseXML.querySelector('State');
+          let zip5Tag = responseXML.querySelector('Zip5');
+          let zip4Tag = responseXML.querySelector('Zip4');
+
+          // Set the response variables to '' by default
+          let address2Res = '';
+          let address1Res = '';
+          let cityRes = '';
+          let stateRes = '';
+          let zip5Res = '';
+          let zip4Res = '';
+
+          // Determine what data is present and add it to the responseHTML variable
+          let responseHTML = '';
+          if (address2Tag != null) {
+            address2Res = address2Tag.innerHTML;
+            responseHTML += `${address2Res}<br>`;
+          }
+          if (address1Tag != null) {
+            address1Res = address1Tag.innerHTML;
+            responseHTML += `${address2Res}<br>`;
+          }
+          if (cityTag != null) {
+            cityRes = cityTag.innerHTML;
+            responseHTML += `${cityRes}, `;
+          }
+          if (stateTag != null) {
+            stateRes = stateTag.innerHTML;
+            responseHTML += `${stateRes} `;
+          }
+          if (zip5Tag != null) {
+            zip5Res = zip5Tag.innerHTML;
+            responseHTML += `${zip5Res}`;
+          }
+          if (zip4Tag != null) {
+            zip4Res = zip4Tag.innerHTML;
+            responseHTML += `-${zip4Res}`;
+          }
+
+          // Remove the error class in case it was applied
+          response.classList.remove('error');
+
+          // Update the element that displays the response
+          response.innerHTML = responseHTML;
+        } else {
+
+          // Get the error description
+          let description = responseXML.querySelector('Description').innerHTML;
+
+          // Add the error class to add a red color
+          response.classList.add('error');
+
+          // Update the element that displays the response
+          response.innerHTML = description;
+        }
+      }
+
+      // Open a connection with the server
+      xhttp.open('GET', url, true);
+
+      // Send the GET request
+      xhttp.send();
+    });
+  </script>
+
+</body>
+
+</html>
